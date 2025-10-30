@@ -36,8 +36,8 @@ module blinker_led(
 
         if(counter == (SECOND_COUNT - 1)) begin
             counter_next = 0;
-            led_next = ~led
+            led_next = ~led;
         end else begin
-            counter_next = counter + 1
+            counter_next = counter + 1;
         end
     end
