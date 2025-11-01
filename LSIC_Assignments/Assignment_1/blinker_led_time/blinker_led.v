@@ -9,7 +9,7 @@ module blinker_led(
 
     //PARAMS
     parameter CLK_FREQ = 50_000_000; //50 MHz from the book
-    parameter SECOND_COUNT = CLK_FREQ // clock will trigger 50_000_000 times / second
+    parameter SECOND_COUNT = CLK_FREQ; // clock will trigger 50_000_000 times / second
 
     //INTERNAL SIGNALS
     reg [25:0] counter;
@@ -41,3 +41,4 @@ module blinker_led(
             counter_next = counter + 1;
         end
     end
+endmodule
