@@ -3,9 +3,14 @@ module time_7segment(
 	input wire rst_n,
 	input wire start_stop,
 	input wire pause,
+    input wire next_saved,
+	output reg [1:0]debug_leds,
 	output wire [6:0] segment_1, segment_2, segment_3, segment_4,
-    output reg dot
-)
+    output reg dot,
+    output [1:0] switch
+);
+
+	assign switch = {start_stop, pause};
 
 	//PARAMS
     parameter CLK_FREQ = 50_000_000; //50 MHz from the book
@@ -24,10 +29,12 @@ module time_7segment(
     reg [3:0] minute_counter_next_2;
 
     //STATE DEFINNITION
-    localparam [1:0] 
-        S_IDLE = 2'b00,
-        S_RUN = 2'b01,
-        S_PAUSE = 2'b10;
+    localparam [1:0] S_IDLE = 2'b00;
+    localparam [1:0] S_RUN = 2'b01;
+    localparam [1:0] S_PAUSE = 2'b10;
+
+    // Pause counter
+    localparam [3:0] pause_cnt;
 
     reg [1:0] state, state_next;
 
@@ -36,12 +43,14 @@ module time_7segment(
     always @(posedge clk) begin
         if(!rst_n) begin
             state <= S_IDLE;
+            pause_cnt <= 0;
             counter <= 0;
             second_counter_1 <= 0;
             second_counter_2 <= 0;
             minute_counter_1 <= 0;
             minute_counter_2 <= 0;
             dot <= 1;
+            debug_leds <= state;
         end else begin
             state <= state_next;
             counter <= counter_next;
@@ -50,6 +59,7 @@ module time_7segment(
             minute_counter_1 <= minute_counter_next_1;
             minute_counter_2 <= minute_counter_next_2;
             dot <= 0;
+            debug_leds <= state;
         end
     end
 
@@ -61,6 +71,7 @@ module time_7segment(
         second_counter_next_2 = second_counter_2;
         minute_counter_next_1 = minute_counter_1;
         minute_counter_next_2 = minute_counter_2;
+        pause_cnt = pause_cnt;
 
         case (state)
             S_IDLE: begin
@@ -69,18 +80,20 @@ module time_7segment(
                 second_counter_next_2 = 0;
                 minute_counter_next_1 = 0;
                 minute_counter_next_2 = 0;
-
-                if(start_stop) begin
+				
+                if(start_stop && !pause) begin
                     state_next = S_RUN;
                 end
             end
 
             S_RUN: begin
-                if(!start_stop) begin
-                    state_next = S_IDLE;
-                end
-                else if (pause) begin
+                // when we restart, pause counter goes to 0
+                pause_cnt = 0;
+                if(pause) begin
                     state_next = S_PAUSE;
+                end
+                else if (!start_stop) begin
+                    state_next = S_IDLE;
                 end
                 else begin
                     if(counter == SECOND_COUNT - 1) begin
@@ -121,6 +134,8 @@ module time_7segment(
             end
 
             S_PAUSE: begin
+                // increment the pause counter
+                pause_cnt = pause_cnt + 1;
                 if(!start_stop) begin
                     state_next = S_IDLE;
                 end
