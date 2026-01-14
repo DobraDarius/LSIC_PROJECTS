@@ -10,7 +10,8 @@ set_global_assignment -name DEVICE 10M50DAF484C7G
 # Source file
 set_global_assignment -name VERILOG_FILE time_7segment.v
 set_global_assignment -name VERILOG_FILE decoder.v
-set_global_assignment -name VERILOF_FILE sram_2port.v
+set_global_assignment -name VERILOG_FILE sram_2port.v
+set_global_assignment -name VERILOG_FILE debouncer.v
 
 # Top entity
 set_global_assignment -name TOP_LEVEL_ENTITY time_7segment
@@ -59,10 +60,12 @@ set_location_assignment PIN_E17 -to segment_4[6]
 #DEBUG LEDS
 set_location_assignment PIN_A8 -to debug_leds[0]
 set_location_assignment PIN_A9 -to debug_leds[1]
+set_location_assignment PIN_A10 -to debug_leds[2]
 
 #SWITCH LEDS
 set_location_assignment PIN_D13 -to switch[1]
 set_location_assignment PIN_B11 -to switch[0]
+set_location_assignment PIN_C13 -to switch[2]
 
 # Compile
 load_package flow

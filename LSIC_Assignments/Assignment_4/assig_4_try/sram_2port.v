@@ -10,10 +10,10 @@ module sram_2port(
 	reg [15:0] ram_mem [256:0]; // let us have 256 mem spaces
 	
 	always @(posedge clk) begin
-		if(wr_en) begin:
+		if(wr_en) begin
 			ram_mem[wr_addr] <= wr_data;
 		end
-		if(rd_en) begin:
+		if(rd_en) begin
 			rd_data <= ram_mem[rd_addr];
 		end
 	end

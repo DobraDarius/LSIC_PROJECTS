@@ -13,8 +13,38 @@ module time_7segment(
 	assign switch = {start_stop, pause, next_saved};
 
 	//PARAMS
-    parameter CLK_FREQ = 50_000_000; //50 MHz from the book
-    parameter SECOND_COUNT = CLK_FREQ; // clock will trigger 50_000_000 times / second
+    parameter CLK_FREQ = 50_000_000; //50 MHz
+    parameter SECOND_COUNT = CLK_FREQ;
+    
+    // Debounced signals
+    wire start_stop_stable, start_stop_edge;
+    wire pause_stable, pause_edge;
+    wire next_saved_stable, next_saved_edge;
+    
+    // Instantiate debouncers (includes sync + debounce + edge detection)
+    debouncer #(.DEBOUNCE_TIME(1_000_000)) db_start (
+        .clk(clk),
+        .rst_n(rst_n),
+        .button_in(start_stop),
+        .button_stable(start_stop_stable),
+        .button_rising_edge(start_stop_edge)
+    );
+    
+    debouncer #(.DEBOUNCE_TIME(1_000_000)) db_pause (
+        .clk(clk),
+        .rst_n(rst_n),
+        .button_in(pause),
+        .button_stable(pause_stable),
+        .button_rising_edge(pause_edge)
+    );
+    
+    debouncer #(.DEBOUNCE_TIME(1_000_000)) db_next (
+        .clk(clk),
+        .rst_n(rst_n),
+        .button_in(next_saved),
+        .button_stable(next_saved_stable),
+        .button_rising_edge(next_saved_edge)
+    );
     
     //INTERNAL_SIGNALS
     reg [25:0] counter;
@@ -28,7 +58,7 @@ module time_7segment(
     reg [3:0] minute_counter_2;
     reg [3:0] minute_counter_next_2;
 
-    //STATE DEFINNITION
+    //STATE DEFINITION
     localparam [2:0] S_IDLE = 3'b000;
     localparam [2:0] S_RUN = 3'b001;
     localparam [2:0] S_PAUSE = 3'b010;
@@ -49,12 +79,11 @@ module time_7segment(
         .clk (clk),
         .rd_data (mem_data_out),
         .rd_addr (rd_pnt),
-        .rd_en (state == S_READ || state == S_READ_NXT), //only in reading states 
+        .rd_en (state == S_READ || state == S_READ_NXT),
         .wr_data({minute_counter_2, minute_counter_1, second_counter_2, second_counter_1}),
         .wr_addr (wr_pnt),
-        .wr_en (state == S_RUN && pause) // on the edge going to pause
+        .wr_en (state == S_RUN && pause_edge)
     );
-
 
     // SEQUENTIAL LOGIC
     always @(posedge clk) begin
@@ -84,7 +113,7 @@ module time_7segment(
     end
 
     //COMBINATIONAL BLOCK
-     always @(*) begin
+    always @(*) begin
         state_next = state;
         counter_next = counter;
         second_counter_next_1 = second_counter_1;
@@ -102,18 +131,17 @@ module time_7segment(
                 minute_counter_next_1 = 0;
                 minute_counter_next_2 = 0;
 				
-                if(start_stop && !pause) begin
+                if(start_stop_edge && !pause_stable) begin
                     state_next = S_RUN;
                 end
             end
 
             S_RUN: begin
-                if(pause) begin
+                if(pause_edge) begin
                 	wr_pnt_next = wr_pnt + 1;
-                	
                     state_next = S_PAUSE;
                 end
-                else if (!start_stop) begin
+                else if (start_stop_edge) begin
                 	if(wr_pnt > 0) begin
                 		state_next = S_READ;
                 	end
@@ -160,11 +188,10 @@ module time_7segment(
             end
 
             S_PAUSE: begin
-            	
-                if(!start_stop) begin
+                if(start_stop_edge) begin
                     state_next = S_READ;
                 end
-                else if(!pause) begin
+                else if(pause_edge) begin
                     state_next = S_RUN;
                 end
                 else begin
@@ -176,13 +203,13 @@ module time_7segment(
             	if(rd_pnt == wr_pnt) begin
             		state_next = S_IDLE;
             	end
-            	else if(next_saved) begin
+            	else if(next_saved_edge) begin
             		state_next = S_READ_NXT;
             	end 
             end
            
            	S_READ_NXT: begin
-           		if(!next_saved) begin
+           		if(!next_saved_stable) begin
            			rd_pnt_next = rd_pnt + 1;
            			state_next = S_READ;
            		end
@@ -193,8 +220,6 @@ module time_7segment(
     end
 
     // Create a selection for displayed values(MUX)
-
-    // the "JARS" where the propper values will be stored
     reg [3:0] display_val_sec1, display_val_sec2, display_val_min1, display_val_min2;
 
     //the MUX logic
